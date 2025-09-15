@@ -1,0 +1,17 @@
+version: "1"
+packages:
+  - name: "db"
+    path: "internal/db"
+    engine: "postgresql"
+    schema: "internal/db/schema.sql"
+    queries: "internal/db/query"
+    sql_package: "pgx/v5"
+    emit_json_tags: true
+    emit_interface: true   # <-- this generates Queries interface
+
+overrides:
+  - db_type: "timestamptz"
+    go_type: "time.Time"
+  - db_type: "text"
+    go_type: "string"
+    nullable: true
