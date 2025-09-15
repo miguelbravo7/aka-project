@@ -1,0 +1,104 @@
+networks:
+  aka-network:
+    driver: bridge
+
+services:
+  # PostgreSQL database
+  db:
+    image: postgres:15.3
+    environment:
+      POSTGRES_DB: myapp
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports: ["5432:5432"]
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ../internal/db/schema.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - aka-network
+
+  # Redis cache and rate limiter
+  redis:
+    image: redis:7.0
+    command: ["redis-server", "--save", "900", "1"]
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - aka-network
+
+  # OpenTelemetry collector
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.83.0
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+      - "8889:8888"   # Prometheus scrape
+    networks:
+      - aka-network
+
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--web.enable-remote-write-receiver", "--web.listen-address=:9090"]
+    ports:
+      - "9090:9090"
+    depends_on:
+      - otel-collector
+    networks:
+      - aka-network
+
+  # Grafana
+  grafana:
+    image: grafana/grafana:10.1.5
+    volumes:
+      - ./grafana.ini:/etc/grafana/grafana.ini
+      - ./grafana/provisioning/:/etc/grafana/provisioning/
+      - ./grafana-dashboard.json:/etc/grafana/provisioning/dashboards/aka-project-characters-api-overview.json
+    environment:
+      GF_PATHS_PROVISIONING: /etc/grafana/provisioning
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_AUTH_ANONYMOUS_ORG_NAME: "Main Org."
+      GF_AUTH_ANONYMOUS_ORG_ID: 1
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - aka-network
+
+  # Application API
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: aka-project-api:latest
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+    env_file:
+      - ../.env
+    ports: ["8080:8080"]
+    networks:
+      - aka-network
+
+volumes:
+  db-data:

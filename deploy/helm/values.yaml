@@ -1,0 +1,47 @@
+replicaCount: 2
+
+image:
+  repository: aka-project
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: true
+  hosts:
+    - host: aka-project.local
+      paths:
+        - path: /
+          pathType: Prefix
+  annotations: {}
+  tls: []
+
+secrets: {}
+
+fluentbit:
+  enabled: true
+
+secrets:
+  DATABASE_URL: "postgres://postgres:password@db:5432/myapp?sslmode=disable"
+  REDIS_ADDR: "redis:6379"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+  API_KEY: "supersecret"
+  RATE_LIMIT_SPEC: "100-M"
+  PORT: "8080"

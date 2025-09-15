@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "aka-project.fullname" . }}
+  labels:
+    {{- include "aka-project.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "aka-project.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "aka-project.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /healthcheck
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthcheck
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          {{- if .Values.secrets }}
+          envFrom:
+            - secretRef:
+                name: {{ include "aka-project.fullname" . }}
+          {{- end }}
+        {{- if .Values.fluentbit.enabled }}
+        - name: fluent-bit
+          image: fluent/fluent-bit:1.9
+          ports:
+            - containerPort: 2020
+          volumeMounts:
+            - name: fluent-bit-config
+              mountPath: /fluent-bit/etc/
+        {{- end }}
+      {{- if .Values.fluentbit.enabled }}
+      volumes:
+        - name: fluent-bit-config
+          configMap:
+            name: {{ include "aka-project.fullname" . }}-fluent-bit
+      {{- end }}

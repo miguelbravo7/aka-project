@@ -1,0 +1,34 @@
+apiVersion: 1
+
+groups:
+  - name: AkaProjectApplicationAlerts
+    rules:
+      - alert: HighApplicationErrorRate
+        expr: |
+          sum(rate(api_characters_requests_total{status!~"2.."}[5m])) by (job) / sum(rate(api_characters_requests_total[5m])) by (job) > 0.05
+        for: 5m0s
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate detected for {{ $labels.job }} application"
+          description: "The error rate for the {{ $labels.job }} application has exceeded 5% for more than 5 minutes. This indicates a potential issue with the application."
+
+      - alert: HighApplicationLatency
+        expr: |
+          histogram_quantile(0.99, sum by (le, job) (rate(api_characters_request_duration_seconds_bucket[5m]))) > 0.5
+        for: 5m0s
+        labels:
+          severity: warning
+        annotations:
+          summary: "High latency detected for {{ $labels.job }} application"
+          description: "The 99th percentile request duration for the {{ $labels.job }} application has exceeded 500ms for more than 5 minutes. This indicates a performance degradation."
+
+      - alert: FrequentContainerRestarts
+        expr: |
+          sum by (container_name) (rate(container_restarts_total{container_name="api"}[5m])) > 0
+        for: 5m0s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Frequent restarts detected for {{ $labels.container_name }} container"
+          description: "The {{ $labels.container_name }} container has restarted frequently in the last 5 minutes. This indicates instability and potential issues."
