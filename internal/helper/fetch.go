@@ -71,7 +71,11 @@ func FetchPage(ctx context.Context, url string) (*APIResponse, error) {
 		span.SetAttributes(attribute.String("fetch.final_error", err.Error()))
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Println("Failed to close response body:", err)
+		}
+	}()
 	body, _ := io.ReadAll(resp.Body)
 
 	var apiResp APIResponse

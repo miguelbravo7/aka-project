@@ -40,11 +40,14 @@ func (h *HealthHandler) Check(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(HealthStatus{
+	if err := json.NewEncoder(w).Encode(HealthStatus{
 		Status: status,
 		Checks: map[string]string{
 			"database": dbStatus,
 			"redis":    redisStatus,
 		},
-	})
+	}); err != nil {
+		http.Error(w, "Failed to encode health status", http.StatusInternalServerError)
+		return
+	}
 }
