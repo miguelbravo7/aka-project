@@ -85,19 +85,7 @@ func (repo *CharacterRepo) persistCharacters(characters []db.Character) error {
 	}
 
 	for _, character := range missingCharacters {
-		_, err = repo.Queries.CreateCharacter(context.Background(), db.CreateCharacterParams{
-			ID:         character.ID,
-			Name:       character.Name,
-			Status:     character.Status,
-			Species:    character.Species,
-			Type:       character.Type,
-			Gender:     character.Gender,
-			Image:      character.Image,
-			Url:        character.Url,
-			Created:    character.Created,
-			OriginID:   character.OriginID,
-			LocationID: character.LocationID,
-		})
+		_, err = repo.Queries.CreateCharacter(context.Background(), db.CreateCharacterParams(character))
 		if err != nil {
 			return internal.Wrap(err, internal.NewError(internal.ErrorCodeInternal, "failed to create character"))
 		}
