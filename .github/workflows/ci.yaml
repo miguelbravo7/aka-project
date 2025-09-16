@@ -21,8 +21,7 @@ jobs:
       - name: Run linter
         uses: golangci/golangci-lint-action@v8
         with:
-          version: v2.1.0
-          args: ./...
+          version: v2.4
 
       - name: Install gosec
         run: go install github.com/securego/gosec/v2/cmd/gosec@latest
